@@ -1,0 +1,362 @@
+---
+title: "Data Visualization Assignment 3"
+author: "Nicholas Hopewell"
+date: "March 25, 2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+```
+```{r}
+library(ggplot2)
+library(ggmap)
+library(datasets)
+library(dplyr)
+library(tidyr)
+```
+
+## Question 1:
+
+## Question 2:
+
+## Question 3:
+
+## Question 4:
+
+I will begin with exploratory analysis and then go through a more lengthy modelling and forecasting process of the timeseries data provided. 
+
+
+First, I will need to know what the data is about.
+```{r}
+#?austres
+```
+The description of the data set is as follows:  
+"Numbers (in thousands) of Australian residents measured quarterly from March 1971 to March 1994. The object is of class "ts"."  
+
+The source of the data set is:  
+P. J. Brockwell and R. A. Davis (1996) Introduction to Time Series and Forecasting. Springer   
+
+Next, I will read in the data:
+```{r}
+aus_data <- austres
+# View(aus_data)
+```
+
+Next, I will plot the data
+```{r, fig.height = 5, fig.width=8}
+# basic time series plot - Time on the x-axis
+# observations are shown from the first on the left, to the last on the right
+plot(aus_data, xlab = "Year", ylab = "# (in thousands) of Australian residents", main = "Quarterly measurements of the number of \nAustrialin residents from March 1971 - March 1994")
+```
+There is a clearn general trend in the data, with the number of austrailian residents increasing over time.  
+There does not, however, appear to be seasonality in these data before it is decomposed into its seasonality components. That is,local changes with certain intervals of the timeseries.  
+
+
+Although the description of the data specifies that it is time series, I will include some commands to verify thiswith two different methods.   
+
+The first method states the structure of the data. If it is timeseries, the start and end points will be given.  
+The second method simply asks whether a data set is timeseries or not and returns a bool. (True if timeseries, False if not).  
+This basically checks for data which is not only a vector of numbers, but also has timestamps associated with it. Such objects are  
+an instance of the ts class and represent data which is at least approximately evenly spaced over time. (See below for assumptions).  
+
+```{r}
+# is it a time series? Two ways to see:
+str(aus_data)
+is.ts(aus_data)
+```
+</br>  
+
+**Timeseries have some important assumptions**  
+* Consecutive data points are evenly spaced.  
+* The series is spread across a discrete time index.  
+  
+Exploring the timeseries answers these questions.
+
+print() will show the time series data and length() will show the total number of observations in the timeseries. 
+```{r}
+# show time series data
+print(aus_data)
+# how many total observations
+length(aus_data)
+```
+It appears there are 89 values in the timeseries.  
+
+Printing out the time series is very important, it can show how evenly spaced the time series data is. This data seems to be  
+evenly spaced with one measurement per quarter of each year. **Importantly though**, it is likely that this timeseries is only *approximately* evenly spaced when one accounts for leap years. This change is in time intervals is so small that it is not likely that  any analysis would be sensitive to this pheonomena, but it is useful to think about nonetheless. An example of a truly evenly spaced series would inlude measurements taken automatically at exact hour intervals. Also notice how the first year (1971) has three measurements while the final year (1993) only has 2 measurements. Now it is clear that the series goes up to *but not including* the third quarter of 1994.  
+
+We also see that the time index is in fact discrete. Thus, both major assumptions have not been violated or even approximated.  
+
+Furthermore, the timeseries has no missing data. If the time series had missing data it would be obvious in the plot and one might considering imputting these data with the mean or some predicted value.
+  
+The start and end points of the series can be confirmed:  
+```{r}
+# see start and end of the series
+cat(start(aus_data), end(aus_data))
+```
+Again, we see the series starts at the second quarter of 1971 and ends after the second quarter of 1993.  
+
+To quickly see how many observations are made at each time unit (in this case each year):  
+```{r}
+# frequency of measurements
+frequency(aus_data)
+```
+Confirmed that 4 are taken each year.  
+
+
+**Note:** From my research it appears that by default, R will take the simple index of the elements of a vector as the time component if a userwants to make a normal vector into a timeseries object. By providing a starting point, stopping point, and frequency, a vector can becomes timeseries similar to the austres data. By making a vector into a timeseries object, a group of associated methods becomes available helping with plotting, accessing time elements, and modelling/forecasting techniques.  
+
+
+Although not very important for these data, the time increment between measurements can be viewed in the following way:
+```{r}
+# see time increment
+deltat(aus_data)
+```
+This tells us the time increment is 1/4, or 4 measurements taken per year. This would be very useful to determinefor time   
+series data which was taken more frequently at smaller time intervals.  
+
+The four observations taken each year represent the measurement cycle. To see the position of each observation within the  
+cycle:
+```{r}
+# view measurement cycle
+cycle(aus_data)
+```
+   
+</br>
+
+**Trends?**
+
+The linear trend in these data are so powerful and clearly defined (the population is simply growing over time). It is also important to know that these data to not appear to show rapid growth beyond a simple linear increase. It could have been the  case that the data showed an exponential increase in population overtime. One way to make such data linear would be to log transform the series. A log transformation is only applicable to a positive timeseries.   
+
+If the data were seasonal, with local trends, it could be analyzed in different ways. In these cases, how rapid the periodic trends cycle across what extreme values in would be very interesting to consider. Seasonal trends can be removed with seasonal difference transformations (where a seasonal lag value is provided). 
+
+Trends can also be trends of variability. Variability in a series may decrease or increase locally or overtime. These types of trends are 
+not applicable to these data. Such trends are often removed or transformed (log again).  
+
+**How to remove the trend of the current data?**  
+
+As previously mentioned, the current data has an apparent linear trend and so it does not need to be transformed with something like a log transformation. However, to remove a linear trend, the data can be transformed into a difference series. The values of a difference series represent the increments or changes of the values found at consecutive measurements in the original series. Because of this, the difference series will nautrally have one less observation than the original series.  
+
+If these data were clearly seasonal, with quarterly paterns, it would be appropriate to do a seasonal difference transformation specifying a lag of 4 (4 quarters in a year). In this case, the seasonal difference series would have 4 less observations than the original series.
+
+
+First I will get the difference values between each consecutive value in the series and then plot the difference plot.
+```{r}
+# diff values
+aus_diff_data <- diff(aus_data)
+# plot difference series
+plot(aus_diff_data, xlab = "Year", ylab = "Difference vals", 
+     main = "Difference series of the Austres data")
+```
+By removing the overall linear trend, the difference between values at each measurement is apparent.   
+
+        
+Now, to see that the difference series does infact have one less data point:
+```{r}
+# original length - diff length
+cat(length(aus_data), length(aus_diff_data))
+```
+<\br>  
+
+**Decompose the timeseries** 
+
+To get a holistic perspective of the data, the series can be decomposed into seasonal, trend, and random components. 
+Recall that the 
+
+```{r}
+# recall the frequency was 4 (4 measurements per year)
+decompose_aus = decompose(ts(aus_data, frequency = 4), "additive")
+
+# plot each decomposition and the original data 
+#plot(as.ts(decompose_aus$seasonal))
+#plot(as.ts(decompose_aus$trend))
+#plot(as.ts(decompose_aus$random))
+plot(decompose_aus)
+```
+Much of these data are we already know. The trend is linear.  
+
+This can also be plotted a slight different way where the remainder is included. This simply includes the residual values of the seasonal values from the trend fit.The method below uses loess fitting (local polynomial regression fitting) instead of a moving average like the first option. I would suggest looking up documentation for these fitting methods - it is not required for this assignment. 
+```{r}
+# same as before just with a different fitting criteria
+stl_aus = stl(ts(aus_data, frequency = 4), "periodic")
+seasonal_stl_aus   <- stl_aus$time.series[,1] # taking the first element
+trend_stl_aus     <- stl_aus$time.series[,2] # second element
+random_stl_aus  <- stl_aus$time.series[,3] # third element
+ 
+# plotting all the graphs
+#plot(aus_data)
+#plot(trend_stl_aus)
+#plot(as.ts(seasonal_stl_aus))
+#plot(random_stl_aus)
+plot(stl_aus)
+```
+
+
+
+**Autocorrelation**  
+
+If covariance is a way to determine whether two different series of observations are related (or vary together i.e. in the same directon), and correlation is a simple standardization of covariance (divded by the standard deviations of both of the series'), autocorrelation provides a way to relate one series to itself. This is done by correlating an observation in a series to its recent past value at a certain time interval.  
+
+A timeseries with greater autocorrelation is much more predictable than a series with lesser or no autocorrelation. For instance, a timeseries with strong autocorrelation would suggest that if the previous value in the series was high then the following value in the series is also likely to be high (and the same for low values).  
+
+Comparing a value to itself one time interval before is know as a lag-1 comparison. In the case of the current data, this would involve comapring the population of Austrailia in the current quarter to the previous quarter. In the case of a lag-2 autocorrelation, the current value would be compared to itself two time intervals in the past (two quarters before). If the data were autocorrelated at lag-II then a high value two quarters in the past would suggest a high value in the current quarter (and the same for low values).   
+
+Comparing autocorrelations at different lag values can unearth some interesting trends. For instance, sales of chocolate easter bunnies around the end of March may be strongly autocorrelated with itself at lag-12 (easter of the previous year) as one would expect such sales to increase before easter in both years.  
+
+The **autocorrelation function** (ACF) is a function of autocorrelation of series across a range of time lags (i.e. lag-1 to lag-12). This can be plotted to easily see temporal autocorrelation of a timeseries and how the autocorrelation increases or decreases at different lab intervals. THE ACF also allows one to understand at what point a timeseries ceases to be correlated with its recent past value. 
+
+
+First, I will manually correlate the series at time lag-1. To do this I will create two vectors, each with length(aus_data) -1, one which does not contain the first value of the series, and one which does not contain the last value of the series.
+
+```{r}
+series_one <- aus_data[-1]
+series_two <- aus_data[-length(aus_data)]
+
+```
+
+I can now confirm they are paired at a difference of one interval:
+```{r}
+# should see values repeated diagonally 
+head(cbind(series_one, series_two))
+```
+  
+I can make a scatter plot out of these vectors to visualize a posible correlation at lag-1.
+```{r}
+plot(series_one, series_two)
+```
+At time lag-1, these data appear to be perfectly correlated.  
+
+To check the correlation:
+```{r}
+# correlate both series'
+cor(series_one, series_two)
+```
+Just about a perfect correlation.  
+
+ To do this automatically with the ACF at lag-1:
+```{r}
+# only lag-1
+acf(aus_data, lag.max = 1, plot = FALSE)
+```
+  
+The values are very slightly differet because sample covariance is calculated using 1/(n-1), while ACF is done using 1/n. Where n = length(aus_data) i.e. The total number of observations in the series.  
+
+To see how the series relates to its past across a range of time lags, I can look at the ACF over this range as well as plot these autocorrelation values. 
+```{r}
+# get autocorrelations up to lag 12
+acf(aus_data, lag.max = 12, plot = FALSE)
+
+```
+As seen about, the values in the series at one time step (one quarterly measurement) are very highly autocorrelated and this correlation steadily decreases as the time lag increases remaining moderate in size even at lag-12.   
+
+To visualize the ACF:
+```{r}
+# plot ACF
+acf(aus_data, lag.max =  12, plot = TRUE)
+
+```
+The values on the x-axis repesent the single time intervals. Recall previously I used the deltat() function on the data to see the time intervals. 0.25 is the base interval as the measurements are taken quarterly (1 yr / 4 = 0.25 or 3 months). The max x-axis value of 3.0 denotes 3 years in the past (3 x 4 = 12 months or one year). As previously mentioned, the most recent population of Austrailia is moderately correlated with the population of Austrailia three years in the past. 
+
+Again, we can see the autocorrelation is very strong. This should be expected in the Austres data because it follows a very predictable linear path over time. The quarterly population is only increasing with time, thus, population of the current quarter ought to be strongly positively correlated with the population of the previous quarter. In other words, these population values should be moving in the same direction (high values in one quarter should suggest high values in the next quarter and vice versa).   
+
+It is also possible to see the ACF of difference values. For the data in the series to be independant, no significant correlation between difference scores should be present.
+```{r}
+acf(aus_diff_data, lag.max =  12, plot = TRUE)
+```
+These data are not independent. Difference scores are significantly correlated until to about lag 6 (although the correlation at lage 6 is very debatable). This is seen by the correlation values exceeding the critical cut-off shown as the doted blue line.   
+
+Specifically, these dashed-blue lines represent the lag-wise 95% confidence intervals around 0. Zero represents the null value and autocorrelation at a given lag is compared to 0 to see if its autocorrelation significantly different than 0 (i.e. no autocorrelation at that lag).
+
+
+
+## Question 5:  
+
+Source of the data:  https://open.canada.ca/data/en/dataset/2c3672b6-4c17-4ff5-9861-29e2dd6d03b3  
+
+These data have been taken from the government of Canada and include earthquake information (location - longitude and latitude, magnitude of quake, date/time, etc.) from 2010-2016. I will subset the data to only include the most recent year (2016).  
+
+
+First, I will read in the data and seperate the date column (which contains date and time) into two new columns - one for date and one for time, just incase this specifics might be of interest in a future analysis. 
+
+```{r}
+# read in the text file
+EQ_data <- read.table("eqarchive.txt", header = T, sep =",")
+#View(EQ_data) # view data
+
+# split date into two new columns, Date and Time
+EQ_data <- EQ_data %>%
+                separate(date, c("Date", "Time"), "T")
+```
+  
+  
+Print out the first few rows:
+```{r}
+glimpse(EQ_data)
+```
+
+```{r}
+# remove last 5 characters from Time column ("+0000")
+EQ_data$Time = substr(EQ_data$Time,1,nchar(EQ_data$Time)-5)
+EQ_data$Date <- as.Date(EQ_data$Date) # make 'date' a date data type
+# EQ_data$Time <- as.POSIXct(EQ_data$Time,format = "%H:%M:%S") 
+```
+
+```{r}
+# check structure of data frame after changes
+str(EQ_data)
+```
+
+```{r}
+# filter only most recent dates (2016)
+EQ_data <- EQ_data %>%
+        filter(Date > "2015-12-31")
+
+```
+
+```{r}
+# set lat and long to be around the center of Canada and zoom out to see entire country
+Canada <- get_map(location = c(-100, 60), zoom =3)
+
+```
+
+
+I will hide the code to make these maps as it is quite a large amount.
+```{r, fig.width=12, fig.height=10, echo=F}
+mag_map <- ggmap(Canada) +
+                geom_point(size = 3, position = "dodge", data = EQ_data, mapping = aes(x = longitude, y = latitude, color = magnitude)) +
+                scale_colour_gradient(low = "yellow",high = "red") +
+                theme(axis.title=element_blank(),
+                      plot.title = element_text(size = 22, face = "bold"),
+                        axis.text=element_blank(),
+                        axis.ticks=element_blank()) +
+                        ggtitle("Magnitudes of Earth Quakes Across Canada (2016)\n") 
+
+mag_map
+```
+
+```{r, fig.width=12, fig.height=10, echo=F}
+dense_map <- ggmap(Canada) +
+                stat_density_2d(bins=400, geom='polygon', size=1.5, data=EQ_data, aes(x = longitude, y = latitude, alpha=..level.., fill = ..level..)) +
+                scale_fill_gradient(low = "yellow", high = "red", guide=FALSE) +  scale_alpha(range = c(0.2, 0.9), guide = FALSE) +xlab("") + ylab("") +
+                theme(axis.title=element_blank(),
+                        plot.title = element_text(size = 22, face = "bold"),
+                        axis.text=element_blank(),
+                        axis.ticks=element_blank()) + 
+                        ggtitle("Density of Earth Quake Occurences Across Canada (2016)\n" )
+
+dense_map
+```
+
+```{r, fig.width=10, fig.height=10, echo=F}
+tile_map <-  ggmap(Canada) +
+                stat_summary_2d(geom = "tile",bins = 65, data=EQ_data, aes(x = longitude, y = latitude, z = magnitude), alpha=0.5) +
+                scale_fill_gradient(low = "yellow", high = "red", guide = guide_legend(title = "Magnitude")) +xlab("") + ylab("") +
+                theme(axis.title=element_blank(),
+                      plot.title = element_text(size = 22, face = "bold"),
+                      axis.text=element_blank(),
+                      axis.ticks=element_blank()) + ggtitle("Earth Quake Clusters by Magnitude Across Canada (2016)\n")
+
+tile_map
+```
+
+

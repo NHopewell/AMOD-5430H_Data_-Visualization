@@ -1,0 +1,364 @@
+---
+title: 'Data Visualization: Assignment 2'
+author: "Nicholas Hopewell"
+date: "February 21, 2018"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ggplot2)
+library(corrplot)
+library(corrgram)
+library(dplyr)
+ library(symbols)
+ library(aplpack)
+ require(ggiraph)
+ require(plyr)
+ require(reshape2)
+
+theme_set(theme_bw())
+```
+
+
+## Question 1
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+edLevelData <- read.csv("refugeeEdLevel.csv", header = TRUE)
+
+
+#View(edLevelData)
+
+library(dplyr)
+ edLevelData %>% group_by(Education.Level) %>% summarise(tot_Amount = sum(Amount))
+
+## education level: 
+# ggplot(edLevelData, aes(x = factor(reorder(Education.Level, Amount)), y =  Amount, fill=factor(Refugee.status))) + 
+#         geom_bar(stat="identity") +
+#         labs( title = '',
+#               x = "\nEducation Level\n",
+#               y = "\nCount\n",
+#               fill = "Refugee Status" ) +
+#         theme(  panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+#                 panel.background = element_blank(), axis.line = element_blank(), 
+#                 axis.text = element_text(face="bold", size=12), axis.title = element_text(face="bold", size=14), 
+#                 legend.text = element_text(face="bold", size = 10),
+#                 legend.title = element_text(face="bold", size = 12)) +
+#         coord_flip()
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+langs <- cbind.data.frame(c('English', 'French', 'Both', 'Neither'), c(27425, 2355, 660, 58140))
+
+colnames(langs) <- c("Language", "Amount")
+
+#View(langs)
+
+str(langs) 
+
+ggplot(langs, aes(x = reorder(Language, -Amount), y = Amount, fill = Language)) +
+        geom_bar(stat="identity") +
+        labs( title = '',
+              y = "",
+              x = "Language spoken") +
+        theme(legend.position="none")
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+lifeCycleSavings <- mutate(LifeCycleSavings,
+                           young_pop = ifelse(pop15 >= 40, 1,0),
+                           old_pop = ifelse(pop75 >= 3, 1, 0), 
+                           high_save = ifelse(sr >= 10, 1, 0), 
+                           fast_growth = ifelse(ddpi >= 3, 1, 0),
+                           high_income = ifelse(dpi >= 1000, 1, 0))
+
+rowNames <- rownames(LifeCycleSavings)
+rownames(lifeCycleSavings) <- rowNames
+
+
+ ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point()
+
+
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point(aes(color = factor(young_pop))) +
+        scale_colour_brewer(palette = "Set1")
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+# now it works for colour and black and white print
+ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point(aes(shape = factor(young_pop), color = factor(young_pop))) +
+        scale_colour_brewer(palette = "Set1")
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point(size = 3, aes(shape = factor(young_pop), color = factor(young_pop))) +
+        scale_colour_brewer(palette = "Set1") +
+        theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+               axis.line.y = element_line(size = 0.5, colour = "black"))
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+ ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point(size = 3, aes(shape = factor(young_pop, labels = c('< 40%',' >= 40%')), 
+                                   color = factor(young_pop, labels = c('< 40%',' >= 40%')))) +
+        scale_colour_brewer(palette = "Set1") +
+        labs( title = 'Life Cycle Savings',
+              x = '% growth rate of per-capita disposable income',
+              y = 'Personal savings rate',
+              color = "% of population\n below age 15",
+              shape = "% of population\n below age 15") +
+        theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+               axis.line.y = element_line(size = 0.5, colour = "black"))
+```
+
+```{r, warning= FALSE, message= FALSE}
+which(lifeCycleSavings['sr'] <= 6 & lifeCycleSavings['young_pop'] == 1)
+
+lifeCycleSavings[which(lifeCycleSavings['sr'] <= 6 & lifeCycleSavings['young_pop'] == 1), ]
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point(size = 3,aes(shape = factor(young_pop, labels = c('< 40%',' >= 40%')), 
+                                 color = factor(young_pop, labels = c('< 40%',' >= 40%')))) +
+        scale_colour_brewer(palette = "Set1") +
+        labs( title = 'Life Cycle Savings',
+              x = '% growth rate of per-capita disposable income',
+              y = 'Personal savings rate',
+              color = "% of population\n below age 15",
+              shape = "% of population\n below age 15") +
+        theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+               axis.line.y = element_line(size = 0.5, colour = "black")) +
+        annotate("rect", xmin = -.2, xmax = 6.3, ymin = 1.6, ymax =6.3,  # add an overlayed rectangle, specifying location on x and y
+                 alpha = 0.3) +
+        annotate("text", x = 8.5, y = 4, label = " Low sr \n young pop \n cluster")# add text
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+#  looking at only south american
+southAmerica <- lifeCycleSavings[c('Brazil', 'Colombia', 'Costa Rica', 'Ecuador', 
+                                   'Guatamala', 'Honduras', 'Nicaragua', 'Panama', 'Paragua',
+                                   'Peru', 'Venezuela', 'Chile', 'Uruguay'), ]
+
+
+
+ggplot(southAmerica, aes(ddpi, sr)) +
+        geom_point(size = 3,aes(shape = factor(young_pop, labels = c('< 40%',' >= 40%')), 
+                                color = factor(young_pop, labels = c('< 40%',' >= 40%')))) +
+        scale_colour_brewer(palette = "Set1") +
+        labs( title = 'Life Cycle Savings (South America)',
+              x = '% growth rate of per-capita disposable income',
+              y = 'Personal savings rate',
+              color = "% of population\n below age 15",
+              shape = "% of population\n below age 15") +
+        theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+               axis.line.y = element_line(size = 0.5, colour = "black")) +
+        geom_text(aes(label=row.names(southAmerica)), size=4, vjust=-2)
+                #ggrepel::geom_label_repel(aes(label=row.names(southAmerica)))
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+# looking at disposible income as well now
+
+ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+        geom_point(size = 3,aes(shape = factor(young_pop, labels = c('< 40%',' >= 40%')), 
+                                color = factor(high_income, labels = c('< 1000',' >= 1000')))) +
+        scale_colour_brewer(palette = "Dark2") +
+        labs( title = 'Life Cycle Savings',
+              x = '% growth rate of per-capita disposable income',
+              y = 'Personal savings rate',
+              color = "Real per-capita\n disposable income",
+              shape = "% of population\n below age 15") +
+        theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+               axis.line.y = element_line(size = 0.5, colour = "black"))
+
+```
+
+```{r, warning= FALSE, message= FALSE}
+
+#notice none of the countries with more than 40% of its population under the age of 15 are high income
+
+which(lifeCycleSavings['young_pop'] ==1 & lifeCycleSavings['high_income'] == 1)   
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+# fitting two linear models based on disposible income of country
+
+ ggplot(lifeCycleSavings, aes(ddpi, sr, color=factor(high_income, labels = c('< 1000',' >= 1000')))) +
+         geom_point() +
+         geom_smooth(method= lm, se=FALSE, fullrange = FALSE) +
+         scale_color_brewer(palette="Dark2") +
+         labs( title = 'Life Cycle Savings',
+               x = '% growth rate of per-capita disposable income',
+               y = 'Personal savings rate',
+               color = "Real per-capita\n disposable income") +
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+# As a rug plot
+ 
+ ggplot(lifeCycleSavings, aes(ddpi, sr)) +
+         geom_point(size = 3) +
+         geom_rug() +
+         labs( title = 'Life Cycle Savings',
+               x = '% growth rate of per-capita disposable income',
+               y = 'Personal savings rate') +
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+ # as a bubble plot, size = dpi
+ 
+ ggplot(lifeCycleSavings, aes(pop75, sr, size = dpi)) +
+         geom_point(shape=21, color='black', fill='blue', alpha = 0.6) +
+         #scale_colour_brewer(palette = "Set1") +
+         scale_size_area(max_size=15) +
+         labs( title = 'Life Cycle Savings',
+               x = '% of population above age 75',
+               y = 'Personal savings rate')+
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+ # scatter plot matrix:
+ 
+ pairs(lifeCycleSavings[,1:5])
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+
+ # correlation matrix
+ 
+ corMatrix <- cor(lifeCycleSavings)
+ corrplot(corMatrix, method = "square", shade.col = NA, tl.col = "black", tl.srt = 45)
+ 
+ 
+ corMatrix2 <- cor(lifeCycleSavings[, 1:5])
+ corrgram(corMatrix2, order = TRUE, lower.panel = panel.shade, upper.panel = NULL, 
+          text.panel = panel.txt, main = "Life Cycle Savings")
+
+```
+split by high income:
+```{r, warning= FALSE, message= FALSE, echo= FALSE, fig.width= 10}
+
+ # small multiples: MUST COMBINE THESE
+ 
+ # split by high income:
+ 
+ p1 <- ggplot(lifeCycleSavings, aes(factor(high_income, labels = c('< 1000',' >= 1000')), pop75, fill=factor(high_income))) +
+         geom_boxplot() +
+         guides(fill=FALSE) +
+         labs( title = '% of population above age 75',
+               x = "Real per-capita disposable income",
+               y = '')+
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+ 
+ 
+ 
+ p2 <- ggplot(lifeCycleSavings, aes(factor(high_income, labels = c('< 1000',' >= 1000')), pop15, fill=factor(high_income))) + 
+         geom_boxplot() +
+         guides(fill=FALSE) +
+         labs( title = '% of population below age 15',
+               x = "Real per-capita disposable income",
+               y = '')+
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+ 
+ 
+ p3 <- ggplot(lifeCycleSavings, aes(factor(high_income, labels = c('< 1000',' >= 1000')), sr, fill=factor(high_income))) + 
+         geom_boxplot() +
+         guides(fill=FALSE) +
+         labs( title = 'Personal savings rate',
+               x = "Real per-capita disposable income",
+               y = '')+
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+ 
+ gridExtra::grid.arrange(p1, p2, p3, nrow = 1)
+ # arrange with gradextra 
+
+```
+
+split by young_pop:
+```{r, warning= FALSE, message= FALSE, echo= FALSE, fig.width= 10}
+
+ # split by young_pop
+ 
+p4 <- ggplot(lifeCycleSavings, aes(factor(young_pop, labels = c('< 40%',' >= 40%')), dpi, fill=factor(young_pop))) + 
+         geom_boxplot() +
+         guides(fill=FALSE) +
+         labs( title = 'Per Capita Disposible Income',
+               x = '% of population below age 15',
+               y = "") +
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+ 
+ p5 <- ggplot(lifeCycleSavings, aes(factor(young_pop), ddpi, fill=factor(young_pop, labels = c('< 40%',' >= 40%')))) + 
+         geom_boxplot() +
+         guides(fill=FALSE) +
+         labs( title = '% growth rate of per-capita disposable income',
+               x = '% of population below age 15',
+               y = "") +
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+ 
+p6 <-  ggplot(lifeCycleSavings, aes(factor(young_pop), sr, fill=factor(young_pop, labels = c('< 40%',' >= 40%')))) + 
+         geom_boxplot() +
+         guides(fill=FALSE) +
+         labs( title = 'Personal savings rate',
+               x = '% of population below age 15',
+               y = "") +
+         theme( axis.line.x = element_line(size = 0.5, colour = "black"), #give axes lines, specify size and colour
+                axis.line.y = element_line(size = 0.5, colour = "black"))
+ 
+ gridExtra::grid.arrange(p4, p5, p6, nrow = 1)
+ # arrange with gradextra
+
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+ stars(lifeCycleSavings[1:10, 1:5])
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+ stars(lifeCycleSavings[4:6, 1:5],locations = c(0, 0), radius = FALSE,
+       col.lines = 1:10, key.loc = c(0, 0), main = "Life Cycle Savings", lty = 2)
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE, fig.width= 12, fig.height=12}
+ faces(lifeCycleSavings[, 1:5] , labels = rownames(lifeCycleSavings))
+```
+
+```{r, warning= FALSE, message= FALSE, echo= FALSE}
+ corMatrix <- cor(lifeCycleSavings)
+ corrplot(corMatrix, method = "pie", shade.col = NA, tl.col = "black", tl.srt = 45)
+```
+
